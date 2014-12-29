@@ -11,8 +11,8 @@ import (
 	"errors"
 	"io/ioutil"
 
-//	"fmt"
-//	"net/http"
+	//	"fmt"
+	//	"net/http"
 )
 
 type WebDriver interface {
@@ -349,7 +349,13 @@ func (s Session) FocusOnFrame(frameId interface{}) error {
 		}
 	}
 	p := params{"id": frameId}
-	_, _, err := s.wd.do(p, "POST", "/session/%s/ime/activate", s.Id)
+	_, _, err := s.wd.do(p, "POST", "/session/%s/frame", s.Id)
+	return err
+}
+
+// Change focus back to parent frame
+func (s Session) FocusParentFrame() error {
+	_, _, err := s.wd.do(nil, "POST", "/session/%s/frame/parent", s.Id)
 	return err
 }
 
