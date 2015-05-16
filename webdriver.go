@@ -375,13 +375,13 @@ func (s Session) CloseCurrentWindow() error {
 //Change the size of the specified window.
 func (w WindowHandle) SetSize(size Size) error {
 	p := params{"width": size.Width, "height": size.Height}
-	_, _, err := w.s.wd.do(p, "POST", "/session/%s/window/%s/size", w.s.Id, w.id)
+	_, _, err := w.S.wd.do(p, "POST", "/session/%s/window/%s/size", w.S.Id, w.Id)
 	return err
 }
 
 //Get the size of the specified window.
 func (w WindowHandle) GetSize() (Size, error) {
-	_, data, err := w.s.wd.do(nil, "GET", "/session/%s/window/%s/size", w.s.Id, w.id)
+	_, data, err := w.S.wd.do(nil, "GET", "/session/%s/window/%s/size", w.S.Id, w.Id)
 	if err != nil {
 		return Size{}, err
 	}
@@ -393,13 +393,13 @@ func (w WindowHandle) GetSize() (Size, error) {
 //Change the position of the specified window.
 func (w WindowHandle) SetPosition(position Position) error {
 	p := params{"x": position.X, "y": position.Y}
-	_, _, err := w.s.wd.do(p, "POST", "/session/%s/window/%s/position", w.s.Id, w.id)
+	_, _, err := w.S.wd.do(p, "POST", "/session/%s/window/%s/position", w.S.Id, w.Id)
 	return err
 }
 
 //Get the position of the specified window.
 func (w WindowHandle) GetPosition() (Position, error) {
-	_, data, err := w.s.wd.do(nil, "GET", "/session/%s/window/%s/position", w.s.Id, w.id)
+	_, data, err := w.S.wd.do(nil, "GET", "/session/%s/window/%s/position", w.S.Id, w.Id)
 	if err != nil {
 		return Position{}, err
 	}
@@ -410,7 +410,7 @@ func (w WindowHandle) GetPosition() (Position, error) {
 
 //Maximize the specified window if not already maximized.
 func (w WindowHandle) MaximizeWindow() error {
-	_, _, err := w.s.wd.do(nil, "POST", "/session/%s/window/%s/maximize", w.s.Id, w.id)
+	_, _, err := w.S.wd.do(nil, "POST", "/session/%s/window/%s/maximize", w.S.Id, w.Id)
 	return err
 }
 
