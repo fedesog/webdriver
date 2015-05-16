@@ -64,8 +64,8 @@ type Session struct {
 }
 
 type WindowHandle struct {
-	s  *Session
-	id string
+	S  *Session
+	Id string
 }
 
 type Size struct {
