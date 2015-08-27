@@ -49,10 +49,16 @@ func probePort(port int, timeout time.Duration) error {
 }
 
 // starts the browser and file logging.
-func runBrowser(exePath string, switches []string, logFilePath string) (*exec.Cmd, *os.File, error) {
+func runBrowser(exePath string, switches []string, env map[string]string, logFilePath string) (*exec.Cmd, *os.File, error) {
 	var logFile *os.File
 
 	cmd := exec.Command(exePath, switches...)
+	cmd.Env = os.Environ()
+	if len(env) > 0 {
+		for k, v := range env {
+			cmd.Env = append(cmd.Env, []string{k + "=" + v}...)
+		}
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, nil, err

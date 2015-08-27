@@ -43,6 +43,7 @@ type FirefoxDriver struct {
 	firefoxPath string
 	xpiPath     string
 	profilePath string
+	env         map[string]string
 	cmd         *exec.Cmd
 	logFile     *os.File
 }
@@ -58,6 +59,7 @@ func NewFirefoxDriver(firefoxPath string, xpiPath string) *FirefoxDriver {
 	d.Prefs = GetDefaultPrefs()
 	d.DeleteProfileOnClose = true
 	d.extensions = make([]string, 0)
+	d.env = make(map[string]string)
 	return d
 }
 
@@ -73,8 +75,8 @@ func (d *FirefoxDriver) SetLogPath(path string) {
 	d.Prefs["webdriver.log.browser.file"] = filepath.Join(path, "browser.log")
 }
 
-func (d *FirefoxDriver) SetEnvironment(key, value string) error {
-	return os.Setenv(key, value)
+func (d *FirefoxDriver) SetEnvironment(key, value string) {
+	d.env[key] = value
 }
 
 func (d *FirefoxDriver) AddExtension(extPath string) {
@@ -119,7 +121,7 @@ func (d *FirefoxDriver) Start() error {
 	}
 	debugprint(d.profilePath)
 	switches := []string{"-no-remote", "-profile", d.profilePath}
-	d.cmd, d.logFile, err = runBrowser(d.firefoxPath, switches, d.LogFile)
+	d.cmd, d.logFile, err = runBrowser(d.firefoxPath, switches, d.env, d.LogFile)
 	if err != nil {
 		return errors.New("unable to start firefox: " + err.Error())
 	}

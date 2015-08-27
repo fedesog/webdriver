@@ -27,7 +27,7 @@ type WebDriver interface {
 	//Returns a list of the currently active sessions.
 	Sessions() ([]Session, error)
 	// Sets environment variables for starting the browser
-	SetEnvironment(key, value string) error
+	SetEnvironment(key, value string)
 	do(params interface{}, method, urlFormat string, urlParams ...interface{}) (string, []byte, error)
 }
 

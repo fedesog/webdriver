@@ -29,10 +29,10 @@ type ChromeDriver struct {
 	LogFile string
 	// Start method fails if Chromedriver doesn't start in less than StartTimeout. Default 20s.
 	StartTimeout time.Duration
-
-	path    string
-	cmd     *exec.Cmd
-	logFile *os.File
+	env          map[string]string
+	path         string
+	cmd          *exec.Cmd
+	logFile      *os.File
 }
 
 //create a new service using chromedriver.
@@ -43,6 +43,7 @@ func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
 	d.Port = 9515
+	d.env = make(map[string]string)
 	d.BaseUrl = ""
 	d.Threads = 4
 	d.LogPath = "chromedriver.log"
@@ -50,8 +51,8 @@ func NewChromeDriver(path string) *ChromeDriver {
 	return d
 }
 
-func (d *ChromeDriver) SetEnvironment(key, value string) error {
-	return os.Setenv(key, value)
+func (d *ChromeDriver) SetEnvironment(key, value string) {
+	d.env[key] = value
 }
 
 var switchesFormat = "-port=%d -url-base=%s -log-path=%s -http-threads=%d"
@@ -83,7 +84,7 @@ func (d *ChromeDriver) Start() error {
 		switches = append(switches, "-url-base="+d.BaseUrl)
 	}
 
-	d.cmd, d.logFile, err = runBrowser(d.path, switches, d.LogFile)
+	d.cmd, d.logFile, err = runBrowser(d.path, switches, d.env, d.LogFile)
 	if err != nil {
 		return errors.New(csferr + err.Error())
 	}
