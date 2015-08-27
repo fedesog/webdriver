@@ -7,7 +7,6 @@ package webdriver
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -51,11 +50,16 @@ func NewChromeDriver(path string) *ChromeDriver {
 	return d
 }
 
+func (d *ChromeDriver) SetEnvironment(key, value string) error {
+	return os.Setenv(key, value)
+}
+
 var switchesFormat = "-port=%d -url-base=%s -log-path=%s -http-threads=%d"
 
 var cmdchan = make(chan error)
 
 func (d *ChromeDriver) Start() error {
+	var err error
 	csferr := "chromedriver start failed: "
 	if d.cmd != nil {
 		return errors.New(csferr + "chromedriver already running")
@@ -79,30 +83,11 @@ func (d *ChromeDriver) Start() error {
 		switches = append(switches, "-url-base="+d.BaseUrl)
 	}
 
-	d.cmd = exec.Command(d.path, switches...)
-	stdout, err := d.cmd.StdoutPipe()
+	d.cmd, d.logFile, err = runBrowser(d.path, switches, d.LogFile)
 	if err != nil {
 		return errors.New(csferr + err.Error())
 	}
-	stderr, err := d.cmd.StderrPipe()
-	if err != nil {
-		return errors.New(csferr + err.Error())
-	}
-	if err := d.cmd.Start(); err != nil {
-		return errors.New(csferr + err.Error())
-	}
-	if d.LogFile != "" {
-		flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-		d.logFile, err = os.OpenFile(d.LogFile, flags, 0640)
-		if err != nil {
-			return err
-		}
-		go io.Copy(d.logFile, stdout)
-		go io.Copy(d.logFile, stderr)
-	} else {
-		go io.Copy(os.Stdout, stdout)
-		go io.Copy(os.Stderr, stderr)
-	}
+
 	if err = probePort(d.Port, d.StartTimeout); err != nil {
 		return err
 	}

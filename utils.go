@@ -7,7 +7,10 @@ package webdriver
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"os/exec"
 	"runtime"
 	"time"
 )
@@ -43,4 +46,36 @@ func probePort(port int, timeout time.Duration) error {
 		time.Sleep(1 * time.Second)
 	}
 	return nil
+}
+
+// starts the browser and file logging.
+func runBrowser(exePath string, switches []string, logFilePath string) (*exec.Cmd, *os.File, error) {
+	var logFile *os.File
+
+	cmd := exec.Command(exePath, switches...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
+	}
+
+	if logFilePath != "" {
+		flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+		logFile, err = os.OpenFile(logFilePath, flags, 0640)
+		if err != nil {
+			return nil, nil, err
+		}
+		go io.Copy(logFile, stdout)
+		go io.Copy(logFile, stderr)
+	} else {
+		go io.Copy(os.Stdout, stdout)
+		go io.Copy(os.Stderr, stderr)
+	}
+	return cmd, logFile, nil
 }

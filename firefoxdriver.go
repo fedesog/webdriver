@@ -73,6 +73,10 @@ func (d *FirefoxDriver) SetLogPath(path string) {
 	d.Prefs["webdriver.log.browser.file"] = filepath.Join(path, "browser.log")
 }
 
+func (d *FirefoxDriver) SetEnvironment(key, value string) error {
+	return os.Setenv(key, value)
+}
+
 func (d *FirefoxDriver) AddExtension(extPath string) {
 	d.extensions = append(d.extensions, extPath)
 }
@@ -114,31 +118,12 @@ func (d *FirefoxDriver) Start() error {
 		return err
 	}
 	debugprint(d.profilePath)
-	d.cmd = exec.Command(d.firefoxPath, "-no-remote", "-profile", d.profilePath)
-	stdout, err := d.cmd.StdoutPipe()
+	switches := []string{"-no-remote", "-profile", d.profilePath}
+	d.cmd, d.logFile, err = runBrowser(d.firefoxPath, switches, d.LogFile)
 	if err != nil {
-		fmt.Println(err)
-	}
-	stderr, err := d.cmd.StderrPipe()
-	if err != nil {
-		fmt.Println(err)
-	}
-	if err := d.cmd.Start(); err != nil {
 		return errors.New("unable to start firefox: " + err.Error())
 	}
-	if d.LogFile != "" {
-		flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-		d.logFile, err = os.OpenFile(d.LogFile, flags, 0640)
-		if err != nil {
-			return err
-		}
-		go io.Copy(d.logFile, stdout)
-		go io.Copy(d.logFile, stderr)
-	} else {
-		go io.Copy(os.Stdout, stdout)
-		go io.Copy(os.Stderr, stderr)
-	}
-	//probe d.Port until firefox replies or StartTimeout is up
+
 	if err = probePort(d.Port, d.StartTimeout); err != nil {
 		return err
 	}

@@ -26,7 +26,8 @@ type WebDriver interface {
 	NewSession(desired, required Capabilities) (*Session, error)
 	//Returns a list of the currently active sessions.
 	Sessions() ([]Session, error)
-
+	// Sets environment variables for starting the browser
+	SetEnvironment(key, value string) error
 	do(params interface{}, method, urlFormat string, urlParams ...interface{}) (string, []byte, error)
 }
 
