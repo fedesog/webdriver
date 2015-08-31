@@ -102,6 +102,13 @@ func (d *ChromeDriver) Stop() error {
 	defer func() {
 		d.cmd = nil
 	}()
+
+	// force shutdown of chrome browser if session.Delete not called/not working
+	_, _, err := d.do(nil, "GET", "/shutdown")
+	if err != nil {
+		d.logFile.Write([]byte(err.Error()))
+	}
+
 	d.cmd.Process.Signal(os.Interrupt)
 	if d.logFile != nil {
 		d.logFile.Close()
