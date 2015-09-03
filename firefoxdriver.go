@@ -19,6 +19,10 @@ import (
 	"time"
 )
 
+const (
+	cpferr = "create profile failed: "
+)
+
 type FirefoxDriver struct {
 	WebDriverCore
 	// The port firefox webdriver listens on. This port - 1 will be used as a mutex to avoid starting multiple firefox instances listening to the same port. Default: 7055
@@ -33,10 +37,13 @@ type FirefoxDriver struct {
 	Prefs map[string]interface{}
 	// If temporary profile has to be deleted when closing. Default: true
 	DeleteProfileOnClose bool
+	// extensions to add to the profile on start.
+	extensions []string
 
 	firefoxPath string
 	xpiPath     string
 	profilePath string
+	env         map[string]string
 	cmd         *exec.Cmd
 	logFile     *os.File
 }
@@ -51,6 +58,8 @@ func NewFirefoxDriver(firefoxPath string, xpiPath string) *FirefoxDriver {
 	d.LogFile = ""
 	d.Prefs = GetDefaultPrefs()
 	d.DeleteProfileOnClose = true
+	d.extensions = make([]string, 0)
+	d.env = make(map[string]string)
 	return d
 }
 
@@ -64,6 +73,14 @@ func (d *FirefoxDriver) SetLogPath(path string) {
 	d.Prefs["webdriver.log.driver.file"] = filepath.Join(path, "driver.log")
 	d.Prefs["webdriver.log.profiler.file"] = filepath.Join(path, "profiler.log")
 	d.Prefs["webdriver.log.browser.file"] = filepath.Join(path, "browser.log")
+}
+
+func (d *FirefoxDriver) SetEnvironment(key, value string) {
+	d.env[key] = value
+}
+
+func (d *FirefoxDriver) AddExtension(extPath string) {
+	d.extensions = append(d.extensions, extPath)
 }
 
 func (d *FirefoxDriver) Start() error {
@@ -98,36 +115,17 @@ func (d *FirefoxDriver) Start() error {
 	//TODO it should be possible to use an existing profile
 	d.Prefs["webdriver_firefox_port"] = d.Port
 	var err error
-	d.profilePath, err = createTempProfile(d.xpiPath, d.Prefs)
+	d.profilePath, err = createTempProfile(d.xpiPath, d.Prefs, d.extensions)
 	if err != nil {
 		return err
 	}
 	debugprint(d.profilePath)
-	d.cmd = exec.Command(d.firefoxPath, "-no-remote", "-profile", d.profilePath)
-	stdout, err := d.cmd.StdoutPipe()
+	switches := []string{"-no-remote", "-profile", d.profilePath}
+	d.cmd, d.logFile, err = runBrowser(d.firefoxPath, switches, d.env, d.LogFile)
 	if err != nil {
-		fmt.Println(err)
-	}
-	stderr, err := d.cmd.StderrPipe()
-	if err != nil {
-		fmt.Println(err)
-	}
-	if err := d.cmd.Start(); err != nil {
 		return errors.New("unable to start firefox: " + err.Error())
 	}
-	if d.LogFile != "" {
-		flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
-		d.logFile, err = os.OpenFile(d.LogFile, flags, 0640)
-		if err != nil {
-			return err
-		}
-		go io.Copy(d.logFile, stdout)
-		go io.Copy(d.logFile, stderr)
-	} else {
-		go io.Copy(os.Stdout, stdout)
-		go io.Copy(os.Stderr, stderr)
-	}
-	//probe d.Port until firefox replies or StartTimeout is up
+
 	if err = probePort(d.Port, d.StartTimeout); err != nil {
 		return err
 	}
@@ -223,23 +221,105 @@ type InstallRDFDescription struct {
 	Id string `xml:"id"`
 }
 
-func createTempProfile(xpiPath string, prefs map[string]interface{}) (string, error) {
-	cpferr := "create profile failed: "
+func createTempProfile(xpiPath string, prefs map[string]interface{}, extensions []string) (string, error) {
+
 	profilePath, err := ioutil.TempDir(os.TempDir(), "webdriver")
 	if err != nil {
 		return "", errors.New(cpferr + err.Error())
 	}
 	extsPath := filepath.Join(profilePath, "extensions")
+
 	err = os.Mkdir(extsPath, 0770)
 	if err != nil {
 		return "", errors.New(cpferr + err.Error())
 	}
-	zr, err := zip.OpenReader(xpiPath)
+
+	err = writeXpi(xpiPath, extsPath)
 	if err != nil {
-		return "", errors.New(cpferr + err.Error())
+		return "", err
+	}
+
+	err = writeUserExtensions(extensions, extsPath)
+	if err != nil {
+		return "", err
+	}
+
+	err = writeUserPrefs(profilePath, prefs)
+	if err != nil {
+		return "", err
+	}
+	return profilePath, nil
+}
+
+func writeUserPrefs(profilePath string, prefs map[string]interface{}) error {
+	fuserName := filepath.Join(profilePath, "user.js")
+	fuser, err := os.OpenFile(fuserName, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return errors.New(cpferr + err.Error())
+	}
+	defer fuser.Close()
+	for k, i := range prefs {
+		fuser.WriteString("user_pref(\"" + k + "\", ")
+		switch x := i.(type) {
+		case bool:
+			if x {
+				fuser.WriteString("true")
+			} else {
+				fuser.WriteString("false")
+			}
+		case int:
+			fuser.WriteString(strconv.Itoa(x))
+		case string:
+			fuser.WriteString("\"" + x + "\"")
+		default:
+			return errors.New(cpferr + "unexpected preference type: " + k)
+		}
+		fuser.WriteString(");\n")
+	}
+	return nil
+}
+
+func writeXpi(xpiPath, extsPath string) error {
+	var err error
+	var zr *zip.ReadCloser
+	var extName string
+
+	zr, err = zip.OpenReader(xpiPath)
+	if err != nil {
+		return errors.New(cpferr + err.Error())
 	}
 	defer zr.Close()
-	var extName string
+
+	extName, err = readIdFromInstallRdf(zr)
+	if err != nil {
+		return err
+	}
+
+	extPath := filepath.Join(extsPath, extName)
+	err = os.Mkdir(extPath, 0770)
+	if err != nil {
+		return errors.New(cpferr + err.Error())
+	}
+
+	for _, f := range zr.File {
+		if err = writeExtensionFile(f, extPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeUserExtensions(extensions []string, extsPath string) error {
+	for _, ext := range extensions {
+		err := writeXpi(ext, extsPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readIdFromInstallRdf(zr *zip.ReadCloser) (string, error) {
 	for _, f := range zr.File {
 		if f.Name == "install.rdf" {
 			rc, err := f.Open()
@@ -259,45 +339,10 @@ func createTempProfile(xpiPath string, prefs map[string]interface{}) (string, er
 			if installRDF.Description.Id == "" {
 				return "", errors.New(cpferr + "unable to find extension Id from install.rdf")
 			}
-			extName = installRDF.Description.Id
-			break
+			return installRDF.Description.Id, nil
 		}
 	}
-	extPath := filepath.Join(extsPath, extName)
-	err = os.Mkdir(extPath, 0770)
-	if err != nil {
-		return "", errors.New(cpferr + err.Error())
-	}
-	for _, f := range zr.File {
-		if err = writeExtensionFile(f, extPath); err != nil {
-			return "", err
-		}
-	}
-	fuserName := filepath.Join(profilePath, "user.js")
-	fuser, err := os.OpenFile(fuserName, os.O_WRONLY|os.O_CREATE, 0600)
-	if err != nil {
-		return "", errors.New(cpferr + err.Error())
-	}
-	defer fuser.Close()
-	for k, i := range prefs {
-		fuser.WriteString("user_pref(\"" + k + "\", ")
-		switch x := i.(type) {
-		case bool:
-			if x {
-				fuser.WriteString("true")
-			} else {
-				fuser.WriteString("false")
-			}
-		case int:
-			fuser.WriteString(strconv.Itoa(x))
-		case string:
-			fuser.WriteString("\"" + x + "\"")
-		default:
-			return "", errors.New(cpferr + "unexpected preference type: " + k)
-		}
-		fuser.WriteString(");\n")
-	}
-	return profilePath, nil
+	return "", errors.New(cpferr + "unable to find install.rdf or extension Id from extension")
 }
 
 func writeExtensionFile(f *zip.File, extPath string) error {
@@ -307,18 +352,23 @@ func writeExtensionFile(f *zip.File, extPath string) error {
 		return errors.New(weferr + err.Error())
 	}
 	defer rc.Close()
+
 	filename := filepath.Join(extPath, f.Name)
+
+	// empty files will not create directories, do it manually.
+	if f.FileInfo().Size() == 0 {
+		os.MkdirAll(filepath.Dir(filename), 0770)
+	}
+
 	if f.FileInfo().IsDir() {
-		err = os.Mkdir(filename, 0770)
-		if err != nil {
-			return err
-		}
+		os.MkdirAll(filename, 0770)
 	} else {
 		dst, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0600)
 		if err != nil {
 			return errors.New(weferr + err.Error())
 		}
 		defer dst.Close()
+
 		_, err = io.Copy(dst, rc)
 		if err != nil {
 			return errors.New(weferr + err.Error())
