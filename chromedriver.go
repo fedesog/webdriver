@@ -38,6 +38,8 @@ type ChromeDriver struct {
 	logFile *os.File
 }
 
+var rand_port = strconv.Itoa(freeport.GetPort()))
+
 //create a new service using chromedriver.
 //function returns an error if not supported switches are passed. Actual content
 //of valid-named switches is not validate and is passed as it is.
@@ -46,7 +48,7 @@ func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
 	// d.Port = 9515
-	d.Port = strconv.Itoa(freeport.GetPort()))
+	d.Port = rand_port
 	d.BaseUrl = ""
 	d.Threads = 4
 	d.LogPath = "chromedriver.log"
