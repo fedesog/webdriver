@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+	
+	"github.com/phayes/freeport"
 )
 
 type ChromeSwitches map[string]interface{}
@@ -43,7 +45,8 @@ type ChromeDriver struct {
 func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
-	d.Port = 9515
+	// d.Port = 9515
+	d.Port = strconv.Itoa(freeport.GetPort()))
 	d.BaseUrl = ""
 	d.Threads = 4
 	d.LogPath = "chromedriver.log"
