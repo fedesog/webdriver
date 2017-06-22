@@ -47,7 +47,6 @@ type ChromeDriver struct {
 func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
-	// d.Port = 9515
 	d.Port = 50386
 	d.BaseUrl = ""
 	d.Threads = 4
