@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 	
-	"github.com/phayes/freeport"
+	// "github.com/phayes/freeport"
 )
 
 type ChromeSwitches map[string]interface{}
@@ -38,7 +38,7 @@ type ChromeDriver struct {
 	logFile *os.File
 }
 
-var rand_port = strconv.Itoa(freeport.GetPort()))
+// var rand_port = strconv.Itoa(freeport.GetPort()))
 
 //create a new service using chromedriver.
 //function returns an error if not supported switches are passed. Actual content
@@ -48,7 +48,7 @@ func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
 	// d.Port = 9515
-	d.Port = rand_port
+	d.Port = 50386
 	d.BaseUrl = ""
 	d.Threads = 4
 	d.LogPath = "chromedriver.log"
