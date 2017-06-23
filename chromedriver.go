@@ -38,7 +38,7 @@ type ChromeDriver struct {
 	logFile *os.File
 }
 
-var rand_port = strconv.Itoa(freeport.GetPort()))
+var rand_port = strconv.Itoa(freeport.GetPort())
 
 //create a new service using chromedriver.
 //function returns an error if not supported switches are passed. Actual content
