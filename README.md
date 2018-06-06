@@ -1,3 +1,5 @@
+This project is not maintained and it is effectively abandoned, if you have interest in this code you should probably clone it.
+
 webdriver
 =========
 
