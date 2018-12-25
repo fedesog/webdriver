@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -162,6 +163,10 @@ func newRequest(method, url string, data []byte) (*http.Request, error) {
 
 type WebDriverCore struct {
 	url string
+}
+
+func (d *WebDriverCore) SetUrl(u *url.URL) {
+	d.url = u.String()
 }
 
 func (w WebDriverCore) Start() error { return nil }
