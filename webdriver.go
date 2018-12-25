@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-
 	//	"fmt"
 	//	"net/http"
 )
@@ -109,12 +108,12 @@ type WebElement struct {
 }
 
 type Cookie struct {
-	Name   string
-	Value  string
-	Path   string
-	Domain string
-	Secure bool
-	Expiry int
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Path   string `json:"path"`
+	Domain string `json:"domain"`
+	Secure bool   `json:"secure"`
+	Expiry int    `json:"expiry"`
 }
 
 type GeoLocation struct {
