@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+	
+	"github.com/phayes/freeport"
 )
 
 type ChromeSwitches map[string]interface{}
@@ -36,6 +38,8 @@ type ChromeDriver struct {
 	logFile *os.File
 }
 
+var rand_port = freeport.GetPort()
+
 //create a new service using chromedriver.
 //function returns an error if not supported switches are passed. Actual content
 //of valid-named switches is not validate and is passed as it is.
@@ -43,7 +47,8 @@ type ChromeDriver struct {
 func NewChromeDriver(path string) *ChromeDriver {
 	d := &ChromeDriver{}
 	d.path = path
-	d.Port = 9515
+	// d.Port = 50386
+	d.Port = rand_port
 	d.BaseUrl = ""
 	d.Threads = 4
 	d.LogPath = "chromedriver.log"
